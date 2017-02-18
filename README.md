@@ -10,7 +10,8 @@ with:
 
 `$ docker run -it -p 5900:5900 yrahal/dev-machine`
 
-Which you can connect to using your preferred VNC client.
+Which you can connect to using your preferred VNC client. The container will ask you to set and confirm
+a password of your choice that you'll re-enter when connecting from the VNC client.
 
 But like any other Docker image, the default command can be overridden and you can launch the container
 in CLI or in order to execute a single command (like a compilation for example). This method does not

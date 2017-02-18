@@ -52,4 +52,4 @@ WORKDIR /src
 EXPOSE 5900
 
 # Run x11vnc on start
-CMD x11vnc -create -forever -usepw
+CMD x11vnc -create -forever -usepw -repeat
