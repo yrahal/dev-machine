@@ -6,6 +6,9 @@ RUN apt-get update --fix-missing
 
 # Install x11vnc and dependencies
 # Install icewm (window manager)
+# Install xz-utils
+# Install cmake
+# Install screen
 # Install git and some UI utilities
 # Install utilities
 # Qt5 and QtCreator
@@ -13,6 +16,9 @@ RUN apt-get update --fix-missing
 # Firefox
 RUN apt-get install -y x11vnc xvfb \
                        icewm \
+                       xz-utils \
+                       cmake \
+                       screen \
                        git gitk git-gui \
                        wget bzip2 vim nano \
                        qt5-default qtcreator \
@@ -24,9 +30,15 @@ RUN apt-get install -y x11vnc xvfb \
 RUN apt-get install -y konsole
 
 # Fetch and install Visual Studio Code
-RUN wget https://az764295.vo.msecnd.net/stable/f9d0c687ff2ea7aabd85fb9a43129117c0ecf519/code_1.9.1-1486597190_amd64.deb -O ~/code.deb && \
-    dpkg -i ~/code.deb && \
-    rm ~/code.deb
+RUN wget https://az764295.vo.msecnd.net/stable/653f8733dd5a5c43d66d7168b4701f94d72b62e5/code_1.10.1-1488415350_amd64.deb -O code.deb && \
+    dpkg -i code.deb && \
+    rm code.deb
+
+# Fetch and install NodeJS
+RUN wget https://nodejs.org/dist/v6.10.0/node-v6.10.0-linux-x64.tar.xz -O node.tar.xz && \
+    tar xvf node.tar.xz && \
+    mv node-* /opt/node && \
+    rm node.tar.xz
 
 # Clean
 RUN apt-get clean
@@ -36,6 +48,9 @@ RUN useradd -m -s /bin/bash orion
 
 # The next commands will be run as the new user
 USER orion
+
+# Add NodeJS to the PATH
+ENV PATH /opt/node/bin:$PATH
 
 # Create some useful default aliases
 RUN bash -c 'echo "alias cp=\"cp -i\"" >> ~/.bash_aliases' && \
