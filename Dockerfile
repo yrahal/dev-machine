@@ -30,7 +30,7 @@ RUN apt-get install -y x11vnc xvfb \
 RUN apt-get install -y konsole
 
 # Fetch and install Visual Studio Code
-RUN wget https://az764295.vo.msecnd.net/stable/653f8733dd5a5c43d66d7168b4701f94d72b62e5/code_1.10.1-1488415350_amd64.deb -O code.deb && \
+RUN wget https://az764295.vo.msecnd.net/stable/8076a19fdcab7e1fc1707952d652f0bb6c6db331/code_1.10.2-1488981323_amd64.deb -O code.deb && \
     dpkg -i code.deb && \
     rm code.deb
 
