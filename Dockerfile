@@ -30,12 +30,12 @@ RUN apt-get install -y x11vnc xvfb \
 RUN apt-get install -y konsole
 
 # Fetch and install Visual Studio Code
-RUN wget https://az764295.vo.msecnd.net/stable/8076a19fdcab7e1fc1707952d652f0bb6c6db331/code_1.10.2-1488981323_amd64.deb -O code.deb && \
+RUN wget https://az764295.vo.msecnd.net/stable/f6868fce3eeb16663840eb82123369dec6077a9b/code_1.12.1-1493934083_amd64.deb -O code.deb && \
     dpkg -i code.deb && \
     rm code.deb
 
 # Fetch and install NodeJS
-RUN wget https://nodejs.org/dist/v6.10.0/node-v6.10.0-linux-x64.tar.xz -O node.tar.xz && \
+RUN wget https://nodejs.org/dist/v7.10.0/node-v7.10.0-linux-x64.tar.xz -O node.tar.xz && \
     tar xvf node.tar.xz && \
     mv node-* /opt/node && \
     rm node.tar.xz
