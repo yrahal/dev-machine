@@ -4,33 +4,19 @@ MAINTAINER Youcef Rahal
 
 RUN apt-get update --fix-missing
 
-# Install x11vnc and dependencies
-# Install icewm (window manager)
-# Install xz-utils
-# Install cmake
-# Install screen
-# Install git and some UI utilities
-# Install utilities
-# Qt5 and QtCreator
-# Dependencies on which Visual Studio Code depends
-# Firefox
-RUN apt-get install -y x11vnc xvfb \
-                       icewm \
-                       xz-utils \
-                       cmake \
-                       screen \
-                       git gitk git-gui \
-                       wget bzip2 vim nano \
-                       qt5-default qtcreator \
-                       libnss3 libnotify4 \
-                       firefox
+# Install Lubuntu desktop
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y lubuntu-desktop
 
-# RUN DEBIAN_FRONTEND=noninteractive apt-get install -y kubuntu-desktop
-# Install Konsole
-RUN apt-get install -y konsole
+# Install some goodies
+RUN apt-get install -y xvfb \
+                       terminator \
+                       vim nano \
+                       git gitk git-gui \
+                       cmake \
+                       qt5-default qtcreator
 
 # Fetch and install Visual Studio Code
-RUN wget https://az764295.vo.msecnd.net/stable/f6868fce3eeb16663840eb82123369dec6077a9b/code_1.12.1-1493934083_amd64.deb -O code.deb && \
+RUN wget https://az764295.vo.msecnd.net/stable/cb82febafda0c8c199b9201ad274e25d9a76874e/code_1.14.2-1500506907_amd64.deb -O code.deb && \
     dpkg -i code.deb && \
     rm code.deb
 
@@ -40,8 +26,34 @@ RUN wget https://nodejs.org/dist/v7.10.0/node-v7.10.0-linux-x64.tar.xz -O node.t
     mv node-* /opt/node && \
     rm node.tar.xz
 
+# Fetch and install VirtualGL
+RUN wget https://sourceforge.net/projects/virtualgl/files/2.5.2/virtualgl_2.5.2_amd64.deb/download -O vgl.deb && \
+    dpkg -i vgl.deb && \
+    rm vgl.deb
+
+# Fetch and install TurboVNC
+RUN wget https://sourceforge.net/projects/turbovnc/files/2.1.1/turbovnc_2.1.1_amd64.deb/download -O tvnc.deb && \
+    dpkg -i tvnc.deb && \
+    rm tvnc.deb
+
 # Clean
-RUN apt-get clean
+RUN apt-get clean && \
+    apt-get autoremove && \
+    rm -r /var/lib/apt/lists/*
+
+# Add NodeJS to the PATH
+ENV PATH /opt/node/bin:$PATH
+
+# Prepare for nvidia-docker - See https://github.com/plumbee/nvidia-virtualgl
+LABEL com.nvidia.volumes.needed="nvidia_driver"
+ENV PATH /usr/local/nvidia/bin:/opt/VirtualGL/bin:${PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_PATH}
+
+# Set this variable so that Gazebo properly loads its UI when using VirtualGL - See https://github.com/P0cL4bs/WiFi-Pumpkin/issues/53
+ENV QT_X11_NO_MITSHM 1
+
+# Configure VirtualGL
+RUN /opt/VirtualGL/bin/vglserver_config -config +s +f -t
 
 # Add a user
 RUN useradd -m -s /bin/bash orion
@@ -49,22 +61,17 @@ RUN useradd -m -s /bin/bash orion
 # The next commands will be run as the new user
 USER orion
 
-# Add NodeJS to the PATH
-ENV PATH /opt/node/bin:$PATH
-
 # Create some useful default aliases
 RUN bash -c 'echo "alias cp=\"cp -i\"" >> ~/.bash_aliases' && \
     bash -c 'echo "alias mv=\"mv -i\"" >> ~/.bash_aliases' && \
     bash -c 'echo "alias rm=\"rm -i\"" >> ~/.bash_aliases'
 
-# Auto start icewm in the ~/.bashrc (if it's not running)
-RUN bash -c 'echo "if ! pidof -x \"icewm\" > /dev/null; then nohup icewm &>> ~/icewm.log & fi" >> ~/.bashrc'
-
 # Set the working directory
 WORKDIR /src
 
-# The port where x11vnc will be running
-EXPOSE 5900
+# The port where the vnc server will be running
+EXPOSE 5901
 
-# Run x11vnc on start
-CMD x11vnc -create -forever -usepw -repeat
+# Create a screen and launch the VNC server
+CMD Xvfb :0 -screen 0 1920x1200x24 & \
+    /opt/TurboVNC/bin/vncserver -fg
