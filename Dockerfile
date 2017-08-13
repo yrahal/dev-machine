@@ -53,13 +53,26 @@ ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64:${LD_LIBRARY_P
 ENV QT_X11_NO_MITSHM 1
 
 # Configure VirtualGL
-RUN /opt/VirtualGL/bin/vglserver_config -config +s +f -t
+# RUN /opt/VirtualGL/bin/vglserver_config -config +s +f -t
 
 # Add a user
 RUN useradd -m -s /bin/bash orion
 
+# Add a group, assign the user to it and give the group sudo rights.
+# It's useful to give sudo rights to the group, instead of to the user, so that
+# sudo will continue to work in case the user is renamed. 
+RUN groupadd sudonopass
+RUN usermod -a -G sudonopass orion
+RUN echo "%sudonopass ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
 # The next commands will be run as the new user
 USER orion
+
+# Seems to be needed here instead of above...
+# RUN echo "sudo /opt/VirtualGL/bin/vglserver_config -config +s +f -t" >> ~/.bashrc
+
+# Configure VirtualGL
+RUN sudo /opt/VirtualGL/bin/vglserver_config -config +s +f -t
 
 # Create some useful default aliases
 RUN bash -c 'echo "alias cp=\"cp -i\"" >> ~/.bash_aliases' && \
