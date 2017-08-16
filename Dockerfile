@@ -36,6 +36,11 @@ RUN wget https://sourceforge.net/projects/turbovnc/files/2.1.1/turbovnc_2.1.1_am
     dpkg -i tvnc.deb && \
     rm tvnc.deb
 
+# Fetch and install noVNC
+RUN apt-get install -y net-tools
+RUN git clone https://github.com/novnc/noVNC /opt/noVNC
+RUN git clone https://github.com/novnc/websockify /opt/noVNC/utils/websockify
+
 # Clean
 RUN apt-get clean && \
     apt-get autoremove && \
@@ -84,7 +89,12 @@ WORKDIR /src
 
 # The port where the vnc server will be running
 EXPOSE 5901
+# The port where the noVNC server will be running
+EXPOSE 6080
 
 # Create a screen and launch the VNC server
 CMD Xvfb :0 -screen 0 1920x1200x24 & \
     /opt/TurboVNC/bin/vncserver -fg
+
+# For noVNC
+# /opt/noVNC/utils/launch.sh --vnc localhost:5901
