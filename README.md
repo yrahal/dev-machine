@@ -1,3 +1,6 @@
+[![Docker Stars](https://img.shields.io/docker/stars/yrahal/dev-machine.svg)](https://hub.docker.com/r/yrahal/dev-machine/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/yrahal/dev-machine.svg)](https://hub.docker.com/r/yrahal/dev-machine/)
+
 # dev-machine
 
 Creates a Docker image built on the latest Lubuntu that hosts a ready-to-use development environment
