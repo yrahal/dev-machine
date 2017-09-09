@@ -51,7 +51,7 @@ and [Robotics](https://www.udacity.com/robotics) Nanodegrees:
   the host.
   * Maps the current directory on the host to `/src` on the container (which is the default working
   directory).
-  * Maps the Docker volume `orion_home` to the `orion` home directory on the container. This volume
+  * Maps the Docker volume `orion-home` to the `orion` home directory on the container. This volume
   exists on the host and is created on the first run. This is useful to persist the preferences
   between sessions, but is not required.
 * `build.sh`: Script to build the image from the `Dockerfile`.
