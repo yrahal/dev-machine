@@ -85,7 +85,7 @@ fi
 
 # Set jupyter to launch within the proper environment if the --jupyter option is set
 if [ $jupyter -eq 1 ] ; then
-  cmd=(bash -c "source activate cpu && /bin/run_jupyter.sh")
+  cmd=(bash -c "source activate cpu && jupyter-server-run")
 fi
 
 # Add a mapping if the --display option is set

@@ -5,6 +5,7 @@ MAINTAINER Youcef Rahal
 # Install Lubuntu desktop
 # Install some goodies
 # net-tools for noVNC below
+# libopencv-dev
 # Clean
 RUN apt-get update --fix-missing && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -15,18 +16,21 @@ RUN apt-get update --fix-missing && \
         git gitk git-gui \
         cmake \
         qt5-default qtcreator \
-        net-tools && \
+        net-tools \
+        libopencv-dev && \
     apt-get clean && \
     apt-get autoremove && \
     rm -r /var/lib/apt/lists/*
 
 # Fetch and install Anaconda3 and dependencies
+ARG conda_dir=/opt/anaconda3
+ARG conda_bin_dir=${conda_dir}/bin
 RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/anaconda.sh && \
-    /bin/bash ~/anaconda.sh -b -p /opt/anaconda3 && \
+    /bin/bash ~/anaconda.sh -b -p ${conda_dir} && \
     rm ~/anaconda.sh
 
 # Add Anaconda3 to the PATH
-ENV PATH /opt/anaconda3/bin:$PATH
+ENV PATH ${conda_bin_dir}:$PATH
 
 # Update pip
 # TODO conda is not properly cloning as it should here (files are copied instead of linked...)
@@ -99,11 +103,22 @@ ENV QT_X11_NO_MITSHM 1
 # Configure VirtualGL
 # RUN /opt/VirtualGL/bin/vglserver_config -config +s +f -t
 
+# Create a utils/ dir and add it to the PATH.
+ARG utils_bin_dir=/opt/utils/bin
+RUN sudo mkdir -p ${utils_bin_dir}
+ENV PATH ${utils_bin_dir}:$PATH
+
 # Create a command to run Jupyter notebooks
-RUN echo "jupyter notebook --no-browser --ip='*'" > /bin/run_jupyter.sh && chmod a+x /bin/run_jupyter.sh
+ARG jupyter_run=${utils_bin_dir}/jupyter-server-run
+RUN echo "#!/bin/bash\n\n" \
+         "jupyter notebook --no-browser --ip='*'" > ${jupyter_run} && \
+    chmod a+x ${jupyter_run}
 
 # Create a command to set the jupyter theme
-RUN echo "jt -T -cellw 1400 -t chesterish -fs 8 -nfs 6 -tfs 6" > /bin/jupyter_theme.sh && chmod a+x /bin/jupyter_theme.sh
+ARG jupyter_theme=${utils_bin_dir}/jupyter-theme-set
+RUN echo "#!/bin/bash\n\n" \
+         "jt -T -cellw 1400 -t chesterish -fs 8 -nfs 6 -tfs 6" > ${jupyter_theme} && \
+    chmod a+x ${jupyter_theme}
 
 # Add a user
 RUN useradd -m -s /bin/bash orion
