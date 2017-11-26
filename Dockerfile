@@ -110,14 +110,20 @@ ENV PATH ${utils_bin_dir}:$PATH
 
 # Create a command to run Jupyter notebooks
 ARG jupyter_run=${utils_bin_dir}/jupyter-server-run
-RUN echo "#!/bin/bash\n\n" \
-         "jupyter notebook --no-browser --ip='*'" > ${jupyter_run} && \
+RUN printf "%s\n" \
+           "#!/bin/bash" \
+           "" \
+           "jupyter notebook --no-browser --ip='*'" > ${jupyter_run} \
+    && \
     chmod a+x ${jupyter_run}
 
 # Create a command to set the jupyter theme
 ARG jupyter_theme=${utils_bin_dir}/jupyter-theme-set
-RUN echo "#!/bin/bash\n\n" \
-         "jt -T -cellw 1400 -t chesterish -fs 8 -nfs 6 -tfs 6" > ${jupyter_theme} && \
+RUN printf "%s\n" \
+           "#!/bin/bash" \
+           "" \
+           "jt -T -cellw 1400 -t chesterish -fs 8 -nfs 6 -tfs 6" > ${jupyter_theme} \
+    && \
     chmod a+x ${jupyter_theme}
 
 # Add a user
@@ -138,9 +144,10 @@ USER orion
 RUN sudo /opt/VirtualGL/bin/vglserver_config -config +s +f -t
 
 # Create some useful default aliases
-RUN bash -c 'echo "alias cp=\"cp -i\"" >> ~/.bash_aliases' && \
-    bash -c 'echo "alias mv=\"mv -i\"" >> ~/.bash_aliases' && \
-    bash -c 'echo "alias rm=\"rm -i\"" >> ~/.bash_aliases'
+RUN printf "%s\n" \
+           "alias cp=\"cp -i\"" \
+           "alias mv=\"mv -i\"" \
+           "alias rm=\"rm -i\"" >> ~/.bash_aliases
 
 # Set Keras to use Tensorflow
 RUN mkdir ~/.keras && echo "{ \"image_dim_ordering\": \"tf\", \"epsilon\": 1e-07, \"backend\": \"tensorflow\", \"floatx\": \"float32\" }" >  ~/.keras/keras.json
