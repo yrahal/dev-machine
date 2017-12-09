@@ -172,9 +172,29 @@ EXPOSE 6080
 # The port where jupyter will be running
 EXPOSE 8888
 
-# Create a screen and launch the VNC server
-CMD Xvfb :0 -screen 0 1920x1200x24 & \
-    /opt/TurboVNC/bin/vncserver -fg
+# Create a command to run when the container starts.
+# It will create a screen and launch TurboVNC, with an option to run noVNC as
+# well if the $NOVNC environment variable is set.
+ENV startup=${utils_bin_dir}/startup
+RUN printf "%s\n" \
+           "#!/bin/bash" \
+           "" \
+           "Xvfb :0 -screen 0 1920x1200x24 &" \
+           "# Sleep to avoid mixing with the error from the previous command. To be fixed." \
+           "sleep 0.5" \
+           "" \
+           "if ! [ -z \${NOVNC+x} ] ; then" \
+           "  # \$NOVNC variable is set. Launch TurboVNC, and if successful, noVNC" \
+           "  /opt/TurboVNC/bin/vncserver" \
+           "  if [ \$? -eq 0 ] ; then" \
+           "    /opt/noVNC/utils/launch.sh --vnc localhost:5901;" \
+           "  fi" \
+           "else" \
+           "  # \$NOVNC variable is NOT set. Launch TurboVNC only, in foreground mode" \
+           "  /opt/TurboVNC/bin/vncserver -fg" \
+           "fi" | sudo tee ${startup} > /dev/null  \
+    && \
+    sudo chmod a+x ${startup}
 
-# For noVNC
-# /opt/noVNC/utils/launch.sh --vnc localhost:5901
+# Run the startup script
+CMD ${startup}
