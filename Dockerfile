@@ -5,6 +5,7 @@ MAINTAINER Youcef Rahal
 # Install Lubuntu desktop
 # Install some goodies
 # net-tools for noVNC below
+# 32-bit libs for Android Studio below
 # libopencv-dev
 # Clean
 RUN apt-get update --fix-missing && \
@@ -17,6 +18,7 @@ RUN apt-get update --fix-missing && \
         cmake \
         qt5-default qtcreator \
         net-tools \
+        lib32z1 lib32ncurses5 lib32stdc++6 \
         libopencv-dev && \
     apt-get clean && \
     apt-get autoremove && \
@@ -25,7 +27,7 @@ RUN apt-get update --fix-missing && \
 # Fetch and install Anaconda3 and dependencies
 ARG conda_dir=/opt/anaconda3
 ARG conda_bin_dir=${conda_dir}/bin
-RUN wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/anaconda.sh && \
+RUN curl https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -o ~/anaconda.sh && \
     /bin/bash ~/anaconda.sh -b -p ${conda_dir} && \
     rm ~/anaconda.sh
 
@@ -55,20 +57,27 @@ RUN /bin/bash -c "\
     conda clean -y -a"
 
 # Fetch and install NodeJS
-RUN wget https://nodejs.org/dist/v7.10.0/node-v7.10.0-linux-x64.tar.xz -O node.tar.xz && \
-    tar xvf node.tar.xz && \
+RUN curl https://nodejs.org/dist/v9.3.0/node-v9.3.0-linux-x64.tar.xz -o node.tar.xz && \
+    echo 'Unpacking...' && tar xf node.tar.xz && \
     mv node-* /opt/node && \
     rm node.tar.xz
 
 # Fetch and install Chrome
-RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -O chrome.deb && \
+RUN curl https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o chrome.deb && \
     dpkg -i chrome.deb && \
     rm chrome.deb
 
 # Fetch and install Visual Studio Code
-RUN wget https://az764295.vo.msecnd.net/stable/b813d12980308015bcd2b3a2f6efa5c810c33ba5/code_1.17.2-1508162334_amd64.deb -O code.deb && \
+RUN curl https://az764295.vo.msecnd.net/stable/929bacba01ef658b873545e26034d1a8067445e9/code_1.18.1-1510857349_amd64.deb -o code.deb && \
     dpkg -i code.deb && \
     rm code.deb
+
+# Fetch and install Android Studio and dependencies
+# https://developer.android.com/studio/install.html
+# https://stackoverflow.com/questions/29112107/how-to-solve-unable-to-run-mksdcard-sdk-tool-when-installing-android-studio-on
+RUN curl https://dl.google.com/dl/android/studio/ide-zips/3.0.1.0/android-studio-ide-171.4443003-linux.zip -o android.zip && \
+    echo 'Unzipping...' && unzip -q android.zip -d /opt && \
+    rm android.zip
 
 # Fetch and install VirtualGL
 RUN wget https://sourceforge.net/projects/virtualgl/files/2.5.2/virtualgl_2.5.2_amd64.deb/download -O vgl.deb && \
@@ -84,13 +93,19 @@ RUN wget https://sourceforge.net/projects/turbovnc/files/2.1.1/turbovnc_2.1.1_am
 RUN git clone https://github.com/novnc/noVNC /opt/noVNC && \
     git clone https://github.com/novnc/websockify /opt/noVNC/utils/websockify
 
+# Fetch and install NoMachine. See https://www.nomachine.com/DT08M00100
+RUN curl http://download.nomachine.com/download/6.0/Linux/nomachine_6.0.66_2_amd64.deb -o nomachine.deb && \
+    echo "0176d029267523a38e65b0119cde263d *nomachine.deb" | md5sum -c && \
+    dpkg -i nomachine.deb && \
+    rm nomachine.deb
+
 # Clean
 RUN apt-get clean && \
     apt-get autoremove && \
     rm -r /var/lib/apt/lists/*
 
-# Add NodeJS to the PATH
-ENV PATH /opt/node/bin:$PATH
+# Add NodeJS and Android Studio to the PATH
+ENV PATH /opt/node/bin:/opt/android-studio/bin:$PATH
 
 # Prepare for nvidia-docker - See https://github.com/plumbee/nvidia-virtualgl
 LABEL com.nvidia.volumes.needed="nvidia_driver"
@@ -173,8 +188,11 @@ EXPOSE 6080
 EXPOSE 8888
 
 # Create a command to run when the container starts.
+# It will ask to create a user password and launch a NoMachine server if
+# the $LAUNCH_NOMACHINE variable is set. The user password won't be saved
+# between sessions (unlike the VNC password).
 # It will create a screen and launch TurboVNC, with an option to run noVNC as
-# well if the $NOVNC environment variable is set.
+# well if the $LAUNCH_NOVNC environment variable is set.
 ENV startup=${utils_bin_dir}/startup
 RUN printf "%s\n" \
            "#!/bin/bash" \
@@ -183,18 +201,36 @@ RUN printf "%s\n" \
            "# Sleep to avoid mixing with the error from the previous command. To be fixed." \
            "sleep 0.5" \
            "" \
-           "if ! [ -z \${NOVNC+x} ] ; then" \
-           "  # \$NOVNC variable is set. Launch TurboVNC, and if successful, noVNC" \
+           "if ! [ -z \${LAUNCH_NOMACHINE+x} ] ; then" \
+           "  # Check password status, and set a password if not set"\
+           "  PASS_STATUS=\"\$(passwd --status | awk '{print \$2}')\"" \
+           "  if [ \"\$PASS_STATUS\" != \"P\" ] ; then" \
+           "    echo You have to set a password for user \'\$(whoami)\' in order to use NoMachine:" \
+           "    sudo passwd --quiet -d \$(whoami)" \
+           "    passwd" \
+           "    if [ \$? -ne 0 ] ; then" \
+           "      exit \$?" \
+           "    fi" \
+           "  fi" \
+           "  # \$LAUNCH_NOMACHINE variable is set. Launch the NoMachine server" \
+           "  sudo /etc/NX/nxserver --startup" \
+           "fi" \
+           "" \
+           "if ! [ -z \${LAUNCH_NOVNC+x} ] ; then" \
+           "  # \$LAUNCH_NOVNC variable is set. Launch TurboVNC, and if successful, noVNC" \
            "  /opt/TurboVNC/bin/vncserver" \
            "  if [ \$? -eq 0 ] ; then" \
            "    /opt/noVNC/utils/launch.sh --vnc localhost:5901;" \
            "  fi" \
            "else" \
-           "  # \$NOVNC variable is NOT set. Launch TurboVNC only, in foreground mode" \
+           "  # \$LAUNCH_NOVNC variable is NOT set. Launch TurboVNC only, in foreground mode" \
            "  /opt/TurboVNC/bin/vncserver -fg" \
            "fi" | sudo tee ${startup} > /dev/null  \
     && \
     sudo chmod a+x ${startup}
+
+# Add Android platform-tools to the PATH
+ENV PATH ~/Android/Sdk/platform-tools:$PATH
 
 # Run the startup script
 CMD ${startup}
