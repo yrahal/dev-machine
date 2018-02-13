@@ -94,8 +94,8 @@ RUN git clone https://github.com/novnc/noVNC /opt/noVNC && \
     git clone https://github.com/novnc/websockify /opt/noVNC/utils/websockify
 
 # Fetch and install NoMachine. See https://www.nomachine.com/DT08M00100
-RUN curl http://download.nomachine.com/download/6.0/Linux/nomachine_6.0.66_2_amd64.deb -o nomachine.deb && \
-    echo "0176d029267523a38e65b0119cde263d *nomachine.deb" | md5sum -c && \
+RUN curl http://download.nomachine.com/download/6.0/Linux/nomachine_6.0.78_1_amd64.deb -o nomachine.deb && \
+    echo "3645673090788ea0b2a3f664bb71a7dd *nomachine.deb" | md5sum -c && \
     dpkg -i nomachine.deb && \
     rm nomachine.deb
 
