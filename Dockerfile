@@ -1,11 +1,10 @@
-FROM ubuntu:latest
+FROM ubuntu:xenial
 
-MAINTAINER Youcef Rahal
+LABEL maintainer="Youcef Rahal"
 
 # Install Lubuntu desktop
 # Install some goodies
 # net-tools for noVNC below
-# 32-bit libs for Android Studio below
 # libopencv-dev
 # Clean
 RUN apt-get update --fix-missing && \
@@ -18,8 +17,8 @@ RUN apt-get update --fix-missing && \
         cmake \
         qt5-default qtcreator \
         net-tools \
-        lib32z1 lib32ncurses5 lib32stdc++6 \
-        libopencv-dev && \
+        libopencv-dev \
+        python3-pyqt5 && \
     apt-get clean && \
     apt-get autoremove && \
     rm -r /var/lib/apt/lists/*
@@ -37,27 +36,31 @@ ENV PATH ${conda_bin_dir}:$PATH
 # Update pip
 # TODO conda is not properly cloning as it should here (files are copied instead of linked...)
 RUN /bin/bash -c "\
+    conda update -n base conda && \
     pip install --upgrade pip && \
-    conda create -y -n cpu && \
+    conda create -y -n cpu python=3.6 && \
     source activate cpu && \
-    conda install -y sympy scikit-learn scikit-image pillow flask-socketio plotly nb_conda pyqtgraph seaborn pandas h5py && \
+    conda install -y sympy scikit-learn scikit-image pillow flask-socketio plotly nb_conda pyqtgraph seaborn pandas h5py cython && \
     conda install -y -c menpo opencv3 && \
     conda install -y -c conda-forge eventlet ffmpeg && \
     pip install moviepy peakutils jupyterthemes && \
-    pip install socketIO-client transforms3d PyQt5 && \
+    pip install socketIO-client transforms3d && \
     conda clean -y -a && \
     source deactivate cpu && \
-    
+    \
     conda create -y -n gpu --clone cpu && \
-    
+    \
     conda install -y -n cpu tensorflow && \
     conda clean -y -a && \
-
+    \
     conda install -y -n gpu tensorflow-gpu && \
+    conda clean -y -a && \
+    \
+    conda install -y -n cpu -c pytorch pytorch torchvision && \
     conda clean -y -a"
 
 # Fetch and install NodeJS
-RUN curl https://nodejs.org/dist/v9.3.0/node-v9.3.0-linux-x64.tar.xz -o node.tar.xz && \
+RUN curl https://nodejs.org/dist/v10.12.0/node-v10.12.0-linux-x64.tar.xz -o node.tar.xz && \
     echo 'Unpacking...' && tar xf node.tar.xz && \
     mv node-* /opt/node && \
     rm node.tar.xz
@@ -68,16 +71,9 @@ RUN curl https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.d
     rm chrome.deb
 
 # Fetch and install Visual Studio Code
-RUN curl https://az764295.vo.msecnd.net/stable/929bacba01ef658b873545e26034d1a8067445e9/code_1.18.1-1510857349_amd64.deb -o code.deb && \
+RUN curl https://az764295.vo.msecnd.net/stable/431ef9da3cf88a7e164f9d33bf62695e07c6c2a9/code_1.28.0-1538751525_amd64.deb -o code.deb && \
     dpkg -i code.deb && \
     rm code.deb
-
-# Fetch and install Android Studio and dependencies
-# https://developer.android.com/studio/install.html
-# https://stackoverflow.com/questions/29112107/how-to-solve-unable-to-run-mksdcard-sdk-tool-when-installing-android-studio-on
-RUN curl https://dl.google.com/dl/android/studio/ide-zips/3.0.1.0/android-studio-ide-171.4443003-linux.zip -o android.zip && \
-    echo 'Unzipping...' && unzip -q android.zip -d /opt && \
-    rm android.zip
 
 # Fetch and install VirtualGL
 RUN wget https://sourceforge.net/projects/virtualgl/files/2.5.2/virtualgl_2.5.2_amd64.deb/download -O vgl.deb && \
@@ -94,8 +90,8 @@ RUN git clone https://github.com/novnc/noVNC /opt/noVNC && \
     git clone https://github.com/novnc/websockify /opt/noVNC/utils/websockify
 
 # Fetch and install NoMachine. See https://www.nomachine.com/DT08M00100
-RUN curl http://download.nomachine.com/download/6.0/Linux/nomachine_6.0.78_1_amd64.deb -o nomachine.deb && \
-    echo "3645673090788ea0b2a3f664bb71a7dd *nomachine.deb" | md5sum -c && \
+RUN curl https://download.nomachine.com/download/6.2/Linux/nomachine_6.2.4_1_amd64.deb -o nomachine.deb && \
+    echo "210bc249ec9940721a1413392eee06fe *nomachine.deb" | md5sum -c && \
     dpkg -i nomachine.deb && \
     rm nomachine.deb
 
@@ -104,8 +100,8 @@ RUN apt-get clean && \
     apt-get autoremove && \
     rm -r /var/lib/apt/lists/*
 
-# Add NodeJS and Android Studio to the PATH
-ENV PATH /opt/node/bin:/opt/android-studio/bin:$PATH
+# Add NodeJS to the PATH
+ENV PATH /opt/node/bin:$PATH
 
 # Prepare for nvidia-docker - See https://github.com/plumbee/nvidia-virtualgl
 LABEL com.nvidia.volumes.needed="nvidia_driver"
@@ -229,8 +225,68 @@ RUN printf "%s\n" \
     && \
     sudo chmod a+x ${startup}
 
-# Add Android platform-tools to the PATH
-ENV PATH ~/Android/Sdk/platform-tools:$PATH
-
 # Run the startup script
-CMD ${startup}
+# Variable expansion doesn't work when using the array version of command,
+# so we're manually expanding ${startup} here...
+# We do this instead of CMD so that the ${startup} script runs as PID 1 and not
+# as a subprocess
+CMD ["/opt/utils/bin/startup"]
+
+# The following is Android specific. It could be extracted into a separate image, but for
+# simplicity sake, it's included with it.
+
+#FROM yrahal/dev-machine
+
+USER root
+
+# We need both ncat and nc...
+RUN apt-get update --fix-missing && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      nmap netcat \
+      default-jdk && \
+    apt-get clean && \
+    apt-get autoremove && \
+    rm -r /var/lib/apt/lists/*
+
+# 32-bit libs for Android Studio if needed
+#        lib32z1 lib32ncurses5 lib32stdc++6 \
+
+# Forward 5037 to the host. This will only work on Mac/Win. TBD on Linux.
+RUN printf "ncat -l 5037 -k -c \"nc host.docker.internal 5037\"\n" | tee /opt/utils/bin/forward_adb && \
+    chmod a+x /opt/utils/bin/forward_adb
+
+# Fetch and install Android Studio and dependencies
+# https://developer.android.com/studio/install.html
+# https://stackoverflow.com/questions/29112107/how-to-solve-unable-to-run-mksdcard-sdk-tool-when-installing-android-studio-on
+RUN curl https://dl.google.com/dl/android/studio/ide-zips/3.2.0.26/android-studio-ide-181.5014246-linux.zip -o android.zip && \
+    echo 'Unzipping...' && unzip -q android.zip -d /opt && \
+    rm android.zip
+
+# Add Android Studio to the PATH
+ENV PATH /opt/android-studio/bin:$PATH
+
+USER orion
+
+# https://facebook.github.io/react-native/docs/getting-started
+ENV ANDROID_HOME=/home/orion/Android/Sdk
+ENV PATH=$PATH:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
+
+RUN curl https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip -o ~/tools.zip && \
+    mkdir -p ${ANDROID_HOME} && \
+    echo 'Unzipping...' && unzip -q ~/tools.zip -d ${ANDROID_HOME} && \
+    rm ~/tools.zip
+
+# Installing the SDK Manager and auto-accepting the licenses...
+RUN yes | ${ANDROID_HOME}/tools/bin/sdkmanager "platforms;android-27" "build-tools;27.0.3" "emulator" "platform-tools"
+
+# Forward adb port to the host (if it's not being forwarded).
+# This way, physical devices attached to the host can be accessed for development.
+RUN printf "%s\n" \
+           "" \
+           "if ! pgrep -x \"ncat\" > /dev/null ; then" \
+           "  echo Forwarding container\'s adb port \(5037\) to the host." \
+           "  nohup forward_adb &> /dev/null &" \
+           "fi" >> ~/.bashrc
+
+# The port needed for React Native development
+EXPOSE 8081
